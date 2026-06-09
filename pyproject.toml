@@ -1,12 +1,13 @@
 [project]
 name = "solrizer"
-version = "1.4.1"
+version = "1.5.0"
 dependencies = [
     "beautifulsoup4",
     "codetiming",
     "configurenv",
-    "edtf",
+    "edtf>=5.0.1",
     "flask",
+    "humanize",
     "jq",
     "langcodes",
     "plastron-client>=4.7.0",
@@ -74,6 +75,7 @@ language = "solrizer.faceters:LanguageFacet"
 location = "solrizer.faceters:LocationFacet"
 presentation_set = "solrizer.faceters:PresentationSetFacet"
 publication_status = "solrizer.faceters:PublicationStatusFacet"
+publication_title = "solrizer.faceters:PublicationTitleFacet"
 publisher = "solrizer.faceters:PublisherFacet"
 rdf_type = "solrizer.faceters:RDFTypeFacet"
 resource_type = "solrizer.faceters:ResourceTypeFacet"

@@ -14,6 +14,7 @@ properties they are based on for the different content models.
 | `OCRFacet`                | `has_ocr`             | N/A⁴                        | N/A⁴                     | N/A⁴                     | N/A⁴                     |
 | `PresentationSetFacet`    | `presentation_set`    | `presentation_set.label`    | `presentation_set.label` | `presentation_set.label` | `presentation_set.label` |
 | `PublicationStatusFacet`  | `publication_status`  | `rdf_type`                  | `rdf_type`               | `rdf_type`               | `rdf_type`               |
+| `PublicationTitleFacet`   | `publication_title`   | —                           | —                        | —                        | `title`                  |
 | `PublisherFacet`          | `publisher`           | `publisher.label`           | —                        | `publisher.label`        | —                        |
 | `RDFTypeFacet`            | `rdf_type`            | `rdf_type`                  | `rdf_type`               | `rdf_type`               | `rdf_type`               |
 | `ResourceTypeFacet`       | `resource_type`       | `format.label`              | `type`                   | `format`²                | —                        |
@@ -310,6 +311,33 @@ class PublicationStatusFacet(FacetBase):
             return ['Published']
         else:
             return ['Unpublished']
+
+
+class PublicationTitleFacet(FacetBase):
+    """Publication title facet.
+
+    Only used for the newspaper collections. Extracts just the publication
+    title from the full metadata title of the object, applies title casing,
+    and returns that value."""
+
+    facet_name = 'publication_title'
+
+    def get_values(self) -> list[str] | None:
+        match self.ctx.obj:
+            case Issue():
+                title = self.ctx.obj.title.value
+                if title is None:
+                    return None
+
+                if '(' in title:
+                    # take everything before the first "(" as the
+                    # publication title, and convert to traditional
+                    # title-case
+                    return [str(title).split('(')[0].strip().title()]
+                else:
+                    return [str(title).title()]
+            case _:
+                return None
 
 
 class PublisherFacet(FacetBase):

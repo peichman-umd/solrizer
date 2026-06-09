@@ -103,11 +103,13 @@ from solrizer.indexers.facets import facet_fields
         ),
         pytest.param(
             Issue(
+                title=Literal('The diamondback (College Park, Md.), 1995-04-01'),
                 presentation_set=URIRef('http://vocab.lib.umd.edu/set#labor'),
             ),
             {
                 'presentation_set__facet': ['Labor'],
                 'publication_status__facet': ['Unpublished'],
+                'publication_title__facet': ['The Diamondback'],
                 'resource_type__facet': ['Newspapers'],
                 'visibility__facet': ['Visible'],
             },

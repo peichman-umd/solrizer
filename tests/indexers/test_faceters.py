@@ -1,5 +1,6 @@
 from unittest.mock import MagicMock
 
+import httpretty
 import pytest
 from plastron.models import ContentModeledResource
 from plastron.models.newspaper import Issue
@@ -22,7 +23,7 @@ from solrizer.faceters import (
     concat_values,
     get_labels,
     language_name,
-    rights_statement_label, ResourceTypeFacet,
+    rights_statement_label, ResourceTypeFacet, PublicationTitleFacet,
 )
 from solrizer.indexers import IndexerContext
 
@@ -175,7 +176,29 @@ def test_censorship_facet(get_mock_context, description, expected_value):
     assert faceter.get_values() == expected_value
 
 
-def test_issue_resource_type_facet_always_newspapers(get_mock_context):
+@httpretty.activate()
+def test_issue_resource_type_facet_always_newspapers(get_mock_context, datadir, register_uri_for_reading):
+    register_uri_for_reading(
+        uri='http://vocab.lib.umd.edu/form#',
+        content_type='application/ld+json',
+        body=(datadir / 'form.jsonld').read_text(),
+    )
     obj = Issue()
     faceter = ResourceTypeFacet(get_mock_context(obj))
     assert faceter.get_values() == ['Newspapers']
+
+
+@pytest.mark.parametrize(
+    ('obj', 'expected_value'),
+    [
+        (Issue(title=Literal('The diamondback (College Park, Md.), 1995-04-01')), ['The Diamondback']),
+        (Issue(title=Literal('La voz latina ([College Park, Md.]), 2001-09-01')), ['La Voz Latina']),
+        (Issue(title=Literal('14% (College Park, Md.), 1995-05-01')), ['14%']),
+        (Issue(title=Literal('No parentheses')), ['No Parentheses']),
+        (Issue(), None),
+        (Item(), None),
+    ]
+)
+def test_publication_title_facet(get_mock_context, obj, expected_value):
+    faceter = PublicationTitleFacet(get_mock_context(obj))
+    assert faceter.get_values() == expected_value

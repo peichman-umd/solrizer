@@ -1,15 +1,11 @@
 from collections.abc import Iterable
 from pathlib import Path
-from unittest.mock import MagicMock
 
 import pytest
 from edtf import EDTFParseException, parse_edtf
 from markdown_to_data import Markdown
-from plastron.models import ContentModeledResource
-from plastron.repo import Repository, RepositoryResource
 
-from solrizer.indexers import IndexerContext
-from solrizer.indexers.dates import UnsupportedEDTFValue, date_fields, solr_date, get_precision
+from solrizer.indexers.dates import UnsupportedEDTFValue, date_fields, solr_date, get_precision, range_size
 
 DOCS_DIR = Path(__file__).parents[2] / 'docs'
 
@@ -51,7 +47,15 @@ EDTF_TEST_STRINGS = get_param_set_from_markdown(
 
 QUALIFIED_EDTF_TEST_STRINGS = get_param_set_from_markdown(
     file=(DOCS_DIR / 'EDTFtoDateRange.md'),
-    columns=['EDTF', 'Solr DateRange', 'Uncertain?', 'Approximate?', 'Uncertain and Approximate?', 'Precision'],
+    columns=[
+        'EDTF',
+        'Solr DateRange',
+        'Uncertain?',
+        'Approximate?',
+        'Uncertain and Approximate?',
+        'Precision',
+        'Range Size',
+    ],
 )
 
 UNSUPPORTED_EDTF_STRINGS = [
@@ -72,22 +76,6 @@ EDTF_PRECISIONS = get_param_set_from_markdown(
     file=(DOCS_DIR / 'EDTFtoDateRange.md'),
     columns=['EDTF', 'Precision'],
 )
-
-
-@pytest.fixture
-def context_with_date():
-    def _context(edtf_value):
-        return IndexerContext(
-            repo=MagicMock(spec=Repository),
-            resource=MagicMock(spec=RepositoryResource),
-            model_class=ContentModeledResource,
-            doc={
-                'date__edtf': edtf_value,
-            },
-            config={},
-        )
-
-    return _context
 
 
 @pytest.mark.parametrize(
@@ -115,6 +103,7 @@ def test_date_fields(edtf_value, expected_solr_value, context_with_date):
         'is_approximate',
         'is_uncertain_and_approximate',
         'precision',
+        'dt_range_size',
     ),
     QUALIFIED_EDTF_TEST_STRINGS,
 )
@@ -125,6 +114,7 @@ def test_uncertain_and_or_approximate(
     is_approximate,
     is_uncertain_and_approximate,
     precision,
+    dt_range_size,
     context_with_date,
 ):
     expected_fields = {
@@ -133,6 +123,7 @@ def test_uncertain_and_or_approximate(
         'date__dt_is_approximate': is_approximate,
         'date__dt_is_uncertain_and_approximate': is_uncertain_and_approximate,
         'date__dt_precision__int': precision,
+        'date__dt_range_size__int': dt_range_size,
     }
     assert date_fields(context_with_date(edtf_value)) == expected_fields
 
@@ -199,3 +190,39 @@ def test_unsupported_edtf_returns_nothing(edtf_value, context_with_date):
 )
 def test_get_precision(edtf_value, expected_precision):
     assert get_precision(parse_edtf(edtf_value)) == expected_precision
+
+
+@pytest.mark.parametrize(
+    ('edtf_value', 'expected_size'),
+    [
+        ('1990', 365),
+        ('1990-12', 31),
+        ('1990-11', 30),
+        ('1990-02', 28),
+        ('1990-11-26', 1),
+        ('1900/1999', 36524),
+        # ignores time portion
+        ('1990-11-26T09:34:21', 1),
+        # 2000 was a leap year
+        ('2000', 366),
+        ('2000-02', 29),
+    ]
+)
+def test_range_size(edtf_value, expected_size):
+    assert range_size(parse_edtf(edtf_value)) == expected_size
+
+
+@pytest.mark.parametrize(
+    ('edtf_value', 'equivalent_range'),
+    [
+        # unbounded ranges are clipped to 0001-01-01 and 9999-12-31
+        ('/2000', '0001-01-01/2000'),
+        ('2000/', '2000/9999-12-31'),
+    ]
+)
+def test_unbounded_range_size(edtf_value, equivalent_range):
+    assert range_size(parse_edtf(edtf_value)) == range_size(parse_edtf(equivalent_range))
+
+
+def test_negative_date_range_size_is_none():
+    assert range_size(parse_edtf('-0009')) is None

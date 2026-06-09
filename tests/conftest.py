@@ -142,3 +142,19 @@ def register_uri_for_reading():
             adding_headers={'Content-Type': content_type},
         )
     return _register_uri_for_reading
+
+
+@pytest.fixture
+def context_with_date():
+    def _context(edtf_value):
+        return IndexerContext(
+            repo=MagicMock(spec=Repository),
+            resource=MagicMock(spec=RepositoryResource),
+            model_class=ContentModeledResource,
+            doc={
+                'date__edtf': edtf_value,
+            },
+            config={},
+        )
+
+    return _context

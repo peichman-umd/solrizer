@@ -300,7 +300,13 @@ def test_object_property_linked():
         ),
     ],
 )
-def test_get_model_fields(obj, prefix, expected_fields):
+@httpretty.activate()
+def test_get_model_fields(obj, prefix, expected_fields, datadir, register_uri_for_reading):
+    register_uri_for_reading(
+        uri='http://vocab.lib.umd.edu/collection#',
+        content_type='application/ld+json',
+        body=(datadir / 'collection.json').read_text(),
+    )
     repo_resource = MagicMock(
         spec=RepositoryResource,
         url=obj.uri,
